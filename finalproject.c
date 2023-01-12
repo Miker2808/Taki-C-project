@@ -14,6 +14,7 @@
 #define MAX_NAME_LENGTH 20
 #define START_CARDS_COUNT 4
 #define INT_TO_ASCII 48
+#define DECK_RESIZE_VALUE 5
 // cards types
 #define PLUS_CARD 10
 #define STOP_CARD 11
@@ -25,6 +26,8 @@
 #define GREEN_CARD 'G'
 #define YELLO_CARD 'Y'
 #define COLORLESS_CARD ' '
+#define NUMBER_CARD_ONLY true
+#define ANY_CARD false
 
 
 // End of defines area
@@ -32,15 +35,18 @@
 // Structures area
 struct Card {
     char cardColor;
-    int cardNumber;
+    unsigned int cardNumber;
 };
 
 struct Player{
     char playerName[MAX_NAME_LENGTH];
     struct Card* cardsArray;
-    int cardsCount;
+    unsigned int cardCount;
+    unsigned int cardDeckSize;
 
 };
+
+
 
 // End of structures area
 //
@@ -48,15 +54,20 @@ struct Player{
 void printWelcome();
 void printCard(struct Card card);
 int askPlayersCount();
-struct Player * queryPlayers(int playersCount);
+struct Player * queryPlayers(unsigned int playersCount);
 struct Card generateCard();
 void freePlayersMemory(struct Player * playersArray, int playersCount);
+void checkValidAllocation(void * ptr);
+void appendCardToPlayer(struct Player * player, struct Card card);
 // End of declerations area
 
 void main(){
+    bool gameFinished = false;
     int playersCount;
-    int statsArray[14][50];
+    int statsArray[15];
     struct Player * playersArray;
+    int currentPlayerIndex = 0;
+    int gameDirectionForward = true;
 
     // random seed
     srand(time(NULL));
@@ -64,6 +75,25 @@ void main(){
     printWelcome();
     playersCount = askPlayersCount();
     playersArray = queryPlayers(playersCount);
+
+    while(!gameFinished){
+        // () print upper card
+
+        // () print the players whose turn it is his cards deck
+
+        // () ask the player whose turn it is to choose cards
+
+        // () check validity of input
+
+        // () if color card, ask to assign color
+
+        // () check validity of cards
+
+        // () assign chosen card as upper card
+        
+        // () append card to statistics array
+
+    }
 
     // allocation and freeing works.
     for(int i=0; i < playersCount; i++){
@@ -73,7 +103,6 @@ void main(){
         for(int card=0; card<START_CARDS_COUNT; card++){
             printf("Card #%d:\n", card+1);
             printCard(playersArray[i].cardsArray[card]);
-            printf("\n");
         }
         
     }
@@ -95,7 +124,7 @@ int askPlayersCount(){
     return playersCount;
 }
 
-struct Player * queryPlayers(int playersCount){
+struct Player * queryPlayers(unsigned int playersCount){
     struct Player * playersArray = malloc(sizeof(struct Player) * playersCount);
 
     for(int playerIdx=0; playerIdx < playersCount; playerIdx++){
@@ -107,9 +136,14 @@ struct Player * queryPlayers(int playersCount){
         struct Card * cardsArray = malloc(sizeof(struct Card) * START_CARDS_COUNT);
         // assign pointer for the player
         playersArray[playerIdx].cardsArray = cardsArray;
+        // assign deck size and card count to keep track of changes to the deck.
+        playersArray[playerIdx].cardDeckSize = START_CARDS_COUNT;
+        playersArray[playerIdx].cardCount = START_CARDS_COUNT;
+        
+        // generate new cards for the player.
         for(int cardIdx=0; cardIdx < START_CARDS_COUNT; cardIdx++){
             // generate card and assign into array
-            playersArray[playerIdx].cardsArray[cardIdx] = generateCard();
+            playersArray[playerIdx].cardsArray[cardIdx] = generateCard(ANY_CARD);
 
         }
         
@@ -150,9 +184,16 @@ void printCard(struct Card card){
     printf("*********\n");
 }
 
-struct Card generateCard(){
+struct Card generateCard(bool numberOnly){
     struct Card newCard;
-    int cardNumber = 1 + rand() % 14; // random card (1-9, or type (10-14))
+    int cardNumber;
+    if(numberOnly){
+        cardNumber = 1 + rand() % 14; // random card (1-9, or type (10-14))
+    }
+    else{
+        cardNumber = 1 + rand() % 9; // random card (1-9)
+    }
+    
     int cardColor = rand() % 4; // random from 0 to 3
     newCard.cardNumber = cardNumber;
     // assign card as colorless if it is a COLOR_CARD
@@ -182,16 +223,46 @@ struct Card generateCard(){
     return newCard;
 }
 
+// adds card to cardArray of the player, resize's the deck if not enough space is 
+// available
+void appendCardToPlayer(struct Player * player, struct Card card){
+    player->cardCount += 1; // Count the new card
+    
+    // increase deck size if necessary
+    if(player->cardCount > player->cardDeckSize){
+        // increase deck by DECK_RESIZE_VALUE to avoid reallocating memory too frequently.
+        player->cardDeckSize += DECK_RESIZE_VALUE;
+        // reallocate cards array to new larger dynamically allocated array.
+        player->cardsArray = realloc(player->cardsArray ,sizeof(struct Card) * player->cardDeckSize);
+        // check that the reallocation worked.
+        checkValidAllocation(player);
+    }
 
+    // append new card to the cardsArray
+    player->cardsArray[player->cardCount - 1] = card;
+
+}
+
+
+// simply checks if ptr is "NULL", exit(1) if yes
+// nothing otherwise.
+void checkValidAllocation(void * ptr){
+    if(ptr == NULL){
+        printf("Pointer is NULL, allocation may have failed.\n");
+        exit(1);
+    }
+}
+
+// Keep this function as last.
 void freePlayersMemory(struct Player * playersArray, int playersCount){
     struct Card * cardPointer;
     for(int i=0; i<playersCount; i++){
         // free each card array from its pointer for each player
         free(playersArray[i].cardsArray);
-        printf("freed cards %d\n", i+1);
+        printf("Freed cards deck %d\n", i+1);
     }
     // free the players array.
     free(playersArray);
-    printf("freed array\n");
+    printf("Freed players array\n");
 }
 // end of file
