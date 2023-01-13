@@ -15,6 +15,8 @@
 #define START_CARDS_COUNT 4
 #define INT_TO_ASCII 48
 #define DECK_RESIZE_VALUE 5
+#define NUMBER_CARD_ONLY true
+#define ANY_CARD false
 // cards types
 #define PLUS_CARD 10
 #define STOP_CARD 11
@@ -26,8 +28,7 @@
 #define GREEN_CARD 'G'
 #define YELLO_CARD 'Y'
 #define COLORLESS_CARD ' '
-#define NUMBER_CARD_ONLY true
-#define ANY_CARD false
+
 
 
 // End of defines area
@@ -45,9 +46,6 @@ struct Player{
     unsigned int cardDeckSize;
 
 };
-
-
-
 // End of structures area
 //
 // Start of declerations area
@@ -55,35 +53,44 @@ void printWelcome();
 void printCard(struct Card card);
 int askPlayersCount();
 struct Player * queryPlayers(unsigned int playersCount);
-struct Card generateCard();
-void freePlayersMemory(struct Player * playersArray, int playersCount);
-void checkValidAllocation(void * ptr);
+struct Card generateCard(bool numberOnly);
 void appendCardToPlayer(struct Player * player, struct Card card);
+void removePlayerCard(struct Player * player, unsigned int cardIndex);
+void printPlayersDeck(struct Player player);
+
+// do not put functions here! (Note for me, mike)
+void checkValidAllocation(void * ptr);
+void freePlayersMemory(struct Player * playersArray, int playersCount);
 // End of declerations area
 
 void main(){
+    // use system time as the random seed, keep as first call on main.
+    srand(time(NULL));
+    // dynamic variables.
     bool gameFinished = false;
     int playersCount;
     int statsArray[15];
     struct Player * playersArray;
+    struct Card upperCard = generateCard(NUMBER_CARD_ONLY);
     int currentPlayerIndex = 0;
-    int gameDirectionForward = true;
+    int gameDirectionIsForward = true;
 
-    // random seed
-    srand(time(NULL));
+    
+    
 
     printWelcome();
     playersCount = askPlayersCount();
     playersArray = queryPlayers(playersCount);
 
     while(!gameFinished){
-        // () print upper card
-
-        // () print the players whose turn it is his cards deck
-
+        // (V) print upper card
+        printf("Upper card:\n");
+        printCard(upperCard);
+        // (V) print the players whose turn it is his cards deck
+        printPlayersDeck(playersArray[currentPlayerIndex]);
         // () ask the player whose turn it is to choose cards
 
-        // () check validity of input
+        // () check validity of input (inside above step)
 
         // () if color card, ask to assign color
 
@@ -92,20 +99,21 @@ void main(){
         // () assign chosen card as upper card
         
         // () append card to statistics array
-
+        printf("Continue?\n");
+        getchar();
     }
-
+    
     // allocation and freeing works.
-    for(int i=0; i < playersCount; i++){
+    // for(int i=0; i < playersCount; i++){
 
-        printf("Name: %s\n", playersArray[i].playerName);
+    //     printf("Name: %s\n", playersArray[i].playerName);
         
-        for(int card=0; card<START_CARDS_COUNT; card++){
-            printf("Card #%d:\n", card+1);
-            printCard(playersArray[i].cardsArray[card]);
-        }
+    //     for(int card=0; card<START_CARDS_COUNT; card++){
+    //         printf("Card #%d:\n", card+1);
+    //         printCard(playersArray[i].cardsArray[card]);
+    //     }
         
-    }
+    // }
 
     freePlayersMemory(playersArray, playersCount);
     printf("finished.");
@@ -118,9 +126,15 @@ void printWelcome(){
 }
 
 int askPlayersCount(){
-    int playersCount;
-    printf("Please enter the number of players:\n");
-    scanf("%d", &playersCount);
+    int playersCount = 0;
+    while(playersCount <= 0){
+        printf("Please enter the number of players:\n");
+        scanf("%d", &playersCount);
+        if(playersCount <= 0){
+            printf("Invalid input. positive integer is required (n > 0).\n");
+        }
+    }
+    
     return playersCount;
 }
 
@@ -188,10 +202,10 @@ struct Card generateCard(bool numberOnly){
     struct Card newCard;
     int cardNumber;
     if(numberOnly){
-        cardNumber = 1 + rand() % 14; // random card (1-9, or type (10-14))
+        cardNumber = 1 + rand() % 9; // random number card (1-9).
     }
     else{
-        cardNumber = 1 + rand() % 9; // random card (1-9)
+        cardNumber = 1 + rand() % 14; // random number card (1-9) or type (10-14)
     }
     
     int cardColor = rand() % 4; // random from 0 to 3
@@ -243,6 +257,23 @@ void appendCardToPlayer(struct Player * player, struct Card card){
 
 }
 
+void removePlayerCard(struct Player * player, unsigned int cardIndex){
+    for(int i=cardIndex; i < player->cardCount; i++){
+        // set all cards ahead to go back by one index.
+        player->cardsArray[cardIndex] = player->cardsArray[cardIndex + 1];
+    }
+    // after resize is complete, change cardsCount
+    player->cardCount -= 1;
+}
+
+void printPlayersDeck(struct Player player){
+    printf("\n%s's turn:\n", player.playerName);
+    for(int i=0; i < player.cardCount; i++){
+        printf("Card #%d:\n", i+1);
+        printCard(player.cardsArray[i]);
+        printf("\n");
+    }
+}
 
 // simply checks if ptr is "NULL", exit(1) if yes
 // nothing otherwise.
