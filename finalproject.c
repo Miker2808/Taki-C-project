@@ -54,9 +54,10 @@ void printCard(struct Card card);
 int askPlayersCount();
 struct Player * queryPlayers(unsigned int playersCount);
 struct Card generateCard(bool numberOnly);
-void appendCardToPlayer(struct Player * player, struct Card card);
-void removePlayerCard(struct Player * player, unsigned int cardIndex);
+void appendCardToPlayer(struct Player * playerPtr, struct Card card);
+void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex);
 void printPlayersDeck(struct Player player);
+struct Card chooseCard(struct Player * playerPtr, struct Card upperCard);
 
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
@@ -75,21 +76,22 @@ void main(){
     int currentPlayerIndex = 0;
     int gameDirectionIsForward = true;
 
-    
-    
-
     printWelcome();
     playersCount = askPlayersCount();
     playersArray = queryPlayers(playersCount);
 
+
+    struct Card randomCard;
+
     while(!gameFinished){
         // (V) print upper card
-        printf("Upper card:\n");
+        printf("\nUpper card:\n");
         printCard(upperCard);
         // (V) print the players whose turn it is his cards deck
         printPlayersDeck(playersArray[currentPlayerIndex]);
         // () ask the player whose turn it is to choose cards
-
+        upperCard = chooseCard(&playersArray[currentPlayerIndex], upperCard);
+        
         // () check validity of input (inside above step)
 
         // () if color card, ask to assign color
@@ -102,18 +104,6 @@ void main(){
         printf("Continue?\n");
         getchar();
     }
-    
-    // allocation and freeing works.
-    // for(int i=0; i < playersCount; i++){
-
-    //     printf("Name: %s\n", playersArray[i].playerName);
-        
-    //     for(int card=0; card<START_CARDS_COUNT; card++){
-    //         printf("Card #%d:\n", card+1);
-    //         printCard(playersArray[i].cardsArray[card]);
-    //     }
-        
-    // }
 
     freePlayersMemory(playersArray, playersCount);
     printf("finished.");
@@ -138,6 +128,9 @@ int askPlayersCount(){
     return playersCount;
 }
 
+// based on the count of players, generate a Player object
+// for each player, for each Player object, generate a deck of cards
+// with 4 random cards. 
 struct Player * queryPlayers(unsigned int playersCount){
     struct Player * playersArray = malloc(sizeof(struct Player) * playersCount);
 
@@ -166,6 +159,7 @@ struct Player * queryPlayers(unsigned int playersCount){
     return playersArray;
 }
 
+// prints the given "card" in a visual way.
 void printCard(struct Card card){
 
     // print two lines
@@ -198,6 +192,10 @@ void printCard(struct Card card){
     printf("*********\n");
 }
 
+// generate a random card using the "rand()" function.
+// will generate a card from 1-9 or of special type
+// will generate a color if the card is eligible for a color.
+// returns in form of Card struct.
 struct Card generateCard(bool numberOnly){
     struct Card newCard;
     int cardNumber;
@@ -239,33 +237,35 @@ struct Card generateCard(bool numberOnly){
 
 // adds card to cardArray of the player, resize's the deck if not enough space is 
 // available
-void appendCardToPlayer(struct Player * player, struct Card card){
-    player->cardCount += 1; // Count the new card
+void appendCardToPlayer(struct Player * playerPtr, struct Card card){
+    playerPtr->cardCount += 1; // Count the new card
     
     // increase deck size if necessary
-    if(player->cardCount > player->cardDeckSize){
+    if(playerPtr->cardCount > playerPtr->cardDeckSize){
         // increase deck by DECK_RESIZE_VALUE to avoid reallocating memory too frequently.
-        player->cardDeckSize += DECK_RESIZE_VALUE;
+        playerPtr->cardDeckSize += DECK_RESIZE_VALUE;
         // reallocate cards array to new larger dynamically allocated array.
-        player->cardsArray = realloc(player->cardsArray ,sizeof(struct Card) * player->cardDeckSize);
+        playerPtr->cardsArray = realloc(playerPtr->cardsArray ,sizeof(struct Card) * playerPtr->cardDeckSize);
         // check that the reallocation worked.
-        checkValidAllocation(player);
+        checkValidAllocation(playerPtr);
     }
 
     // append new card to the cardsArray
-    player->cardsArray[player->cardCount - 1] = card;
+    playerPtr->cardsArray[playerPtr->cardCount - 1] = card;
 
 }
 
-void removePlayerCard(struct Player * player, unsigned int cardIndex){
-    for(int i=cardIndex; i < player->cardCount; i++){
+// remove the card at the assigned index from the deck, by overwritting with the cards ahead.
+void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex){
+    for(int i=cardIndex; i < playerPtr->cardCount; i++){
         // set all cards ahead to go back by one index.
-        player->cardsArray[cardIndex] = player->cardsArray[cardIndex + 1];
+        playerPtr->cardsArray[cardIndex] = playerPtr->cardsArray[cardIndex + 1];
     }
     // after resize is complete, change cardsCount
-    player->cardCount -= 1;
+    playerPtr->cardCount -= 1;
 }
 
+// print the cards that the "player" has in his deck.
 void printPlayersDeck(struct Player player){
     printf("\n%s's turn:\n", player.playerName);
     for(int i=0; i < player.cardCount; i++){
@@ -274,6 +274,56 @@ void printPlayersDeck(struct Player player){
         printf("\n");
     }
 }
+
+// given a player pointer (not an playerArray), and the upperCard
+// ask the following player for a card to choose or to take a card from the deck.
+struct Card chooseCard(struct Player * playerPtr, struct Card upperCard){
+    bool validCardChosen = false;
+    int chosenCardIndex;
+    struct Card newCard;
+
+    // ask user for input, check for valid input.
+    while(true){
+        printf("Please enter 0 if you want to take a card from the deck\n");
+        printf("or 1-%d if you want to put one of your cards in the middle:", playerPtr->cardCount);
+        scanf("%d", &chosenCardIndex);
+        if(chosenCardIndex >= 0 && chosenCardIndex <= playerPtr->cardCount ){
+            break;
+        }
+        else{
+            printf("Invalid choice! Try again.\n");
+        }
+    }
+
+    if(chosenCardIndex == 0){
+        // generate new card and append it.
+        newCard = generateCard(ANY_CARD);
+        appendCardToPlayer(playerPtr, newCard);
+        return upperCard;
+    }
+    else{
+        chosenCardIndex -= 1; // align input to be a valid index.
+    }
+
+    
+    while(!validCardChosen){
+        break;
+        
+        //TODO: make function: validateCardChoice(struct Card chosenCard, structCard upperCard);
+        // function will check those 3 options.
+        // if yes, it'll return this card, otherwise will request for new input.
+
+        // check the chosen card to see if it is valid
+        // cases are:
+        // 1) equal numbers
+        
+        // 2) equal colors
+
+        // 3) special colorless card (COLOR)
+    }
+    return upperCard;
+}
+
 
 // simply checks if ptr is "NULL", exit(1) if yes
 // nothing otherwise.
