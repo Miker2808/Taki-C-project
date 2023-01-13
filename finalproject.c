@@ -61,6 +61,8 @@ int chooseCard(struct Player * playerPtr, struct Card upperCard);
 bool validateCardChoice(struct Card chosenCard, struct Card upperCard);
 void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, struct Card * upperCard, int chosenCardIndex);
 
+char queryCardColor();
+int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
@@ -108,6 +110,13 @@ void main(){
         // () assign chosen card as upper card
         
         // () append card to statistics array
+
+        // assign index of next player based on game's direction.
+        currentPlayerIndex += gameDirection;
+        
+        // correct index in case it got through the borders.
+        currentPlayerIndex = mapPlayerTurnIndex(currentPlayerIndex, playersCount);
+        
         printf("Continue?\n");
         getchar();
     }
@@ -369,7 +378,6 @@ void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTu
     // handle ChangeDirection card
     else if(currentCard.cardNumber == DIRECTION_CARD){
         *gameDirection *= -1; // change direction
-        
     }
     // handle stop card
     else if(currentCard.cardNumber == STOP_CARD){
@@ -377,14 +385,11 @@ void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTu
     }
     else if(currentCard.cardNumber == CHANGE_COLOR_CARD){
         // prompt user to choose color:
-        printf("Please enter your color choice:\n");
-        printf("1 - Yellow\n2 - Red\n3 - Blue\n4 - Green\n");
-        int colorChoice;
-        
-        // set this color
-        // remove card from player.
+        currentCard.cardColor = queryCardColor();
     }
-
+    else if(currentCard.cardNumber == TAKI_CARD){
+        // handle TAKI_CARD
+    }
 
     *upperCard = currentCard; // set value of upperCard as value of currentCard.
 
@@ -393,11 +398,19 @@ void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTu
 // asks user for card color, checks validity of input
 // returns char of chosen color
 char queryCardColor(){   
-    int inputChoice;
+    int inputChoice = -1;
     char chosenColor;
-    printf("Please enter your color choice:\n");
-    printf("1 - Yellow\n2 - Red\n3 - Blue\n4 - Green\n");
-    scanf("%d", &inputChoice);
+    while(true){
+        printf("Please enter your color choice:\n");
+        printf("1 - Yellow\n2 - Red\n3 - Blue\n4 - Green\n");
+        scanf("%d", &inputChoice);
+        if(inputChoice >= 1 && inputChoice <= 4){
+            break;
+        }
+        else{
+            printf("Invalid choice! Try again.\n");
+        }
+    }
 
     switch (inputChoice)
     {
@@ -419,6 +432,18 @@ char queryCardColor(){
 
     return chosenColor;
     
+}
+
+int mapPlayerTurnIndex(int playersTurnIndex, int playersCount){
+    // checks current index against number of players
+    // resets value if index passed a border.
+    if(playersTurnIndex < 0){
+        playersTurnIndex = playersCount + playersTurnIndex;
+    }
+    else if(playersTurnIndex >= playersCount){
+        playersTurnIndex %= playersCount;
+    }
+    return playersTurnIndex;
 }
 
 // simply checks if ptr is "NULL", exit(1) if yes
