@@ -17,6 +17,8 @@
 #define DECK_RESIZE_VALUE 5
 #define NUMBER_CARD_ONLY true
 #define ANY_CARD false
+#define FORWARD 1
+#define BACKWARD -1
 // cards types
 #define PLUS_CARD 10
 #define STOP_CARD 11
@@ -28,8 +30,6 @@
 #define GREEN_CARD 'G'
 #define YELLO_CARD 'Y'
 #define COLORLESS_CARD ' '
-
-
 
 // End of defines area
 //
@@ -57,7 +57,9 @@ struct Card generateCard(bool numberOnly);
 void appendCardToPlayer(struct Player * playerPtr, struct Card card);
 void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex);
 void printPlayersDeck(struct Player player);
-struct Card chooseCard(struct Player * playerPtr, struct Card upperCard);
+int chooseCard(struct Player * playerPtr, struct Card upperCard);
+bool validateCardChoice(struct Card chosenCard, struct Card upperCard);
+void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, struct Card * upperCard, int chosenCardIndex);
 
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
@@ -74,7 +76,8 @@ void main(){
     struct Player * playersArray;
     struct Card upperCard = generateCard(NUMBER_CARD_ONLY);
     int currentPlayerIndex = 0;
-    int gameDirectionIsForward = true;
+    int gameDirection = FORWARD;
+    int chosenCardIndex;
 
     printWelcome();
     playersCount = askPlayersCount();
@@ -84,15 +87,19 @@ void main(){
     struct Card randomCard;
 
     while(!gameFinished){
+        // each iteration equals a turn.
+
         // (V) print upper card
         printf("\nUpper card:\n");
         printCard(upperCard);
         // (V) print the players whose turn it is his cards deck
         printPlayersDeck(playersArray[currentPlayerIndex]);
-        // () ask the player whose turn it is to choose cards
-        upperCard = chooseCard(&playersArray[currentPlayerIndex], upperCard);
+        // (V) ask the player whose turn it is to choose cards
+        chosenCardIndex = chooseCard(&playersArray[currentPlayerIndex], upperCard);
         
-        // () check validity of input (inside above step)
+        // (V) check validity of input (inside "chooseCard")
+
+        // () Function to decide what to do with the card (Based on color, taki or basic).
 
         // () if color card, ask to assign color
 
@@ -133,6 +140,7 @@ int askPlayersCount(){
 // with 4 random cards. 
 struct Player * queryPlayers(unsigned int playersCount){
     struct Player * playersArray = malloc(sizeof(struct Player) * playersCount);
+    checkValidAllocation(playersArray);
 
     for(int playerIdx=0; playerIdx < playersCount; playerIdx++){
         // ask, name, assign cards, and so on..
@@ -141,6 +149,8 @@ struct Player * queryPlayers(unsigned int playersCount){
 
         // create cards array pointer
         struct Card * cardsArray = malloc(sizeof(struct Card) * START_CARDS_COUNT);
+        checkValidAllocation(cardsArray);
+
         // assign pointer for the player
         playersArray[playerIdx].cardsArray = cardsArray;
         // assign deck size and card count to keep track of changes to the deck.
@@ -216,16 +226,16 @@ struct Card generateCard(bool numberOnly){
         switch (cardColor)
         {
         case 0:
-            newCard.cardColor = 'R';
+            newCard.cardColor = RED_CARD;
             break;
         case 1:
-            newCard.cardColor = 'B';
+            newCard.cardColor = BLUE_CARD;
             break;
         case 2:
-            newCard.cardColor = 'G';
+            newCard.cardColor = GREEN_CARD;
             break;
         case 3:
-            newCard.cardColor = 'Y';
+            newCard.cardColor = YELLO_CARD;
             break;
         default:
             break;
@@ -277,53 +287,139 @@ void printPlayersDeck(struct Player player){
 
 // given a player pointer (not an playerArray), and the upperCard
 // ask the following player for a card to choose or to take a card from the deck.
-struct Card chooseCard(struct Player * playerPtr, struct Card upperCard){
+// returns the index of the card the player chose, returns -1 if player decided to take a card
+// from the deck.
+int chooseCard(struct Player * playerPtr, struct Card upperCard){
     bool validCardChosen = false;
     int chosenCardIndex;
     struct Card newCard;
 
     // ask user for input, check for valid input.
-    while(true){
+    while(!validCardChosen){
         printf("Please enter 0 if you want to take a card from the deck\n");
         printf("or 1-%d if you want to put one of your cards in the middle:", playerPtr->cardCount);
         scanf("%d", &chosenCardIndex);
+        
         if(chosenCardIndex >= 0 && chosenCardIndex <= playerPtr->cardCount ){
-            break;
+            // player decides to take a card from the deck
+            if(chosenCardIndex == 0){
+                // generate new card and append it.
+                newCard = generateCard(ANY_CARD);
+                appendCardToPlayer(playerPtr, newCard);
+                return -1;
+            }
+            // player decides to place a card of choice.
+            else{
+                chosenCardIndex -= 1; // align input to be a valid index.
+                // check if the card is a legal move. request input again for invalid move
+                validCardChosen = validateCardChoice(playerPtr->cardsArray[chosenCardIndex], upperCard);
+                if(validCardChosen == false){
+                    printf("Invalid card! Try again.\n");
+                }
+
+            }
         }
         else{
             printf("Invalid choice! Try again.\n");
         }
     }
 
-    if(chosenCardIndex == 0){
-        // generate new card and append it.
-        newCard = generateCard(ANY_CARD);
-        appendCardToPlayer(playerPtr, newCard);
-        return upperCard;
-    }
-    else{
-        chosenCardIndex -= 1; // align input to be a valid index.
-    }
-
-    
-    while(!validCardChosen){
-        break;
-        
-        //TODO: make function: validateCardChoice(struct Card chosenCard, structCard upperCard);
-        // function will check those 3 options.
-        // if yes, it'll return this card, otherwise will request for new input.
-
-        // check the chosen card to see if it is valid
-        // cases are:
-        // 1) equal numbers
-        
-        // 2) equal colors
-
-        // 3) special colorless card (COLOR)
-    }
-    return upperCard;
+    // change to return cardIndex
+    return chosenCardIndex;
 }
 
+// check if chosenCard is a valid move compared to the card in the middle.
+// returns true if card is a valid move, returns false otherwise.
+bool validateCardChoice(struct Card chosenCard, struct Card upperCard){
+    // check if one of the three requirements are satisfied:
+
+    // 1) Colorless change color card.
+    if(chosenCard.cardNumber == CHANGE_COLOR_CARD){
+        return true;
+    }
+    // 2) equal number card
+    else if(chosenCard.cardNumber == upperCard.cardNumber){
+        return true;
+    }
+    // 3) equal color card
+    else if(chosenCard.cardColor == upperCard.cardColor){
+        return true;
+    }
+    else{
+        return false;
+    }
+    
+}
+
+
+void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, struct Card * upperCard, int chosenCardIndex){
+    // 1) check card type,
+    // if card is of basic value (1-9), assign upperCard as this card, and remove this card from player
+    struct Card currentCard = playerPtr->cardsArray[chosenCardIndex];
+    removePlayerCard(playerPtr, chosenCardIndex);
+    // handle basic cards (1-9)
+    if(currentCard.cardNumber > 1 && currentCard.cardNumber < 10){
+        // simply assign this card as the upperCard and finish.
+        return;
+    }
+    // handle Plus card
+    else if(currentCard.cardNumber == PLUS_CARD){
+        *playersTurnIndex -= 1; // next turn will assign to the same player.
+    }
+    // handle ChangeDirection card
+    else if(currentCard.cardNumber == DIRECTION_CARD){
+        *gameDirection *= -1; // change direction
+        
+    }
+    // handle stop card
+    else if(currentCard.cardNumber == STOP_CARD){
+        *playersTurnIndex += 1; // next turn will skip one player.
+    }
+    else if(currentCard.cardNumber == CHANGE_COLOR_CARD){
+        // prompt user to choose color:
+        printf("Please enter your color choice:\n");
+        printf("1 - Yellow\n2 - Red\n3 - Blue\n4 - Green\n");
+        int colorChoice;
+        
+        // set this color
+        // remove card from player.
+    }
+
+
+    *upperCard = currentCard; // set value of upperCard as value of currentCard.
+
+}
+
+// asks user for card color, checks validity of input
+// returns char of chosen color
+char queryCardColor(){   
+    int inputChoice;
+    char chosenColor;
+    printf("Please enter your color choice:\n");
+    printf("1 - Yellow\n2 - Red\n3 - Blue\n4 - Green\n");
+    scanf("%d", &inputChoice);
+
+    switch (inputChoice)
+    {
+    case 1:
+        chosenColor = YELLO_CARD;
+        break;
+    case 2:
+        chosenColor = RED_CARD;
+        break;
+    case 3:
+        chosenColor = BLUE_CARD;
+        break;
+    case 4:
+        chosenColor = GREEN_CARD;
+        break;
+    default:
+        break;
+    }
+
+    return chosenColor;
+    
+}
 
 // simply checks if ptr is "NULL", exit(1) if yes
 // nothing otherwise.
