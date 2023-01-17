@@ -269,12 +269,14 @@ void appendCardToPlayer(struct Player * playerPtr, struct Card card){
 
 // remove the card at the assigned index from the deck, by overwritting with the cards ahead.
 void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex){
+    // make the cardCount smaller by 1
+    playerPtr->cardCount -= 1;
+    // iterate all cards but the last one (we removed it using above line)
     for(int i=cardIndex; i < playerPtr->cardCount; i++){
         // set all cards ahead to go back by one index.
-        playerPtr->cardsArray[cardIndex] = playerPtr->cardsArray[cardIndex + 1];
+        playerPtr->cardsArray[i] = playerPtr->cardsArray[i + 1];
     }
-    // after resize is complete, change cardsCount
-    playerPtr->cardCount -= 1;
+    
 }
 
 // print the cards that the "player" has in his deck.
@@ -357,7 +359,7 @@ bool validateCardChoice(struct Card chosenCard, struct Card upperCard){
 
 
 // the most important function!
-// decides what to do based on car chosen!
+// decides what to do based on card chosen!
 void cardHandler(struct Player * playerPtr, int * gameDirectionPtr, int * playersTurnIndexPtr, struct Card * upperCardPtr, int chosenCardIndex){
     // 1) check card type,
     // if card is of basic value (1-9), assign upperCard as this card, and remove this card from player
