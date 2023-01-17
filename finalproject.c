@@ -60,9 +60,10 @@ void printPlayersDeck(struct Player player);
 int chooseCard(struct Player * playerPtr, struct Card upperCard);
 bool validateCardChoice(struct Card chosenCard, struct Card upperCard);
 void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, struct Card * upperCard, int chosenCardIndex);
-
 char queryCardColor();
+int handleTakiCard(struct Player * playerPtr, struct Card * upperCard);
 int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
+int mapValueEdges(int value, int leftEdge, int rightEdge);
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
@@ -98,17 +99,9 @@ void main(){
         printPlayersDeck(playersArray[currentPlayerIndex]);
         // (V) ask the player whose turn it is to choose cards
         chosenCardIndex = chooseCard(&playersArray[currentPlayerIndex], upperCard);
-        
-        // (V) check validity of input (inside "chooseCard")
-
-        // () Function to decide what to do with the card (Based on color, taki or basic).
-
-        // () if color card, ask to assign color
-
-        // () check validity of cards
-
-        // () assign chosen card as upper card
-        
+        if(chosenCardIndex >= 0){
+            cardHandler(&playersArray[currentPlayerIndex], &gameDirection, &currentPlayerIndex, &upperCard, chosenCardIndex);
+        }
         // () append card to statistics array
 
         // assign index of next player based on game's direction.
@@ -117,8 +110,8 @@ void main(){
         // correct index in case it got through the borders.
         currentPlayerIndex = mapPlayerTurnIndex(currentPlayerIndex, playersCount);
         
-        printf("Continue?\n");
-        getchar();
+        // printf("Continue?\n");
+        // getchar();
     }
 
     freePlayersMemory(playersArray, playersCount);
@@ -306,16 +299,17 @@ int chooseCard(struct Player * playerPtr, struct Card upperCard){
     // ask user for input, check for valid input.
     while(!validCardChosen){
         printf("Please enter 0 if you want to take a card from the deck\n");
-        printf("or 1-%d if you want to put one of your cards in the middle:", playerPtr->cardCount);
+        printf("or 1-%d if you want to put one of your cards in the middle:\n", playerPtr->cardCount);
         scanf("%d", &chosenCardIndex);
         
+        // card chosen is in valid range of choices  
         if(chosenCardIndex >= 0 && chosenCardIndex <= playerPtr->cardCount ){
             // player decides to take a card from the deck
             if(chosenCardIndex == 0){
                 // generate new card and append it.
                 newCard = generateCard(ANY_CARD);
                 appendCardToPlayer(playerPtr, newCard);
-                return -1;
+                return -1; // no card was chosen.
             }
             // player decides to place a card of choice.
             else{
@@ -361,37 +355,44 @@ bool validateCardChoice(struct Card chosenCard, struct Card upperCard){
 }
 
 
-void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, struct Card * upperCard, int chosenCardIndex){
+
+// the most important function!
+// decides what to do based on car chosen!
+void cardHandler(struct Player * playerPtr, int * gameDirectionPtr, int * playersTurnIndexPtr, struct Card * upperCardPtr, int chosenCardIndex){
     // 1) check card type,
     // if card is of basic value (1-9), assign upperCard as this card, and remove this card from player
     struct Card currentCard = playerPtr->cardsArray[chosenCardIndex];
     removePlayerCard(playerPtr, chosenCardIndex);
     // handle basic cards (1-9)
-    if(currentCard.cardNumber > 1 && currentCard.cardNumber < 10){
+    if(currentCard.cardNumber >= 1 && currentCard.cardNumber < 10){
         // simply assign this card as the upperCard and finish.
-        return;
+        // so, simply do nothing.
     }
     // handle Plus card
     else if(currentCard.cardNumber == PLUS_CARD){
-        *playersTurnIndex -= 1; // next turn will assign to the same player.
+        *playersTurnIndexPtr -= 1; // next turn will assign to the same player.
     }
     // handle ChangeDirection card
     else if(currentCard.cardNumber == DIRECTION_CARD){
-        *gameDirection *= -1; // change direction
+        *gameDirectionPtr *= -1; // change direction
     }
     // handle stop card
     else if(currentCard.cardNumber == STOP_CARD){
-        *playersTurnIndex += 1; // next turn will skip one player.
+        *playersTurnIndexPtr += 1; // next turn will skip one player.
     }
     else if(currentCard.cardNumber == CHANGE_COLOR_CARD){
         // prompt user to choose color:
+        // and assign the color to the upper deck card
         currentCard.cardColor = queryCardColor();
     }
     else if(currentCard.cardNumber == TAKI_CARD){
         // handle TAKI_CARD
+        chosenCardIndex = handleTakiCard(playerPtr, upperCardPtr);
+        currentCard = playerPtr->cardsArray[chosenCardIndex]; // update current card as Taki may have changed it
+        cardHandler(playerPtr, gameDirectionPtr, playersTurnIndexPtr, upperCardPtr, chosenCardIndex);
     }
 
-    *upperCard = currentCard; // set value of upperCard as value of currentCard.
+    *upperCardPtr = currentCard; // set value of upperCard as value of currentCard.
 
 }
 
@@ -434,6 +435,62 @@ char queryCardColor(){
     
 }
 
+// handle a taki card
+// place all valid cards for the taki, and return the last card placed.
+int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
+    bool endTurn = false;
+    bool validCardChosen;
+    int chosenCardIndex;
+    char takiCardColor = upperCardPtr->cardColor;
+        
+    while(!endTurn){
+        // prin the deck of the player. and ask to choose a card to place.
+        validCardChosen = false; // reset flag for new choice.
+        // print deck info.
+        printf("\nUpper card:\n");
+        printCard(*upperCardPtr);
+        printPlayersDeck(*playerPtr);
+        
+        while(!validCardChosen){
+            printf("Please enter 0 if you want to finish your turn\n");
+            printf("or 1-%d if you want to put one of your cards in the middle:\n", playerPtr->cardCount);
+            scanf("%d", &chosenCardIndex);
+            // card chosen is in valid range of choices  
+            if(chosenCardIndex >= 0 && chosenCardIndex <= playerPtr->cardCount ){
+                // player decides to end the turn
+                if(chosenCardIndex == 0){
+                    endTurn == true;
+                    break;
+                }
+                // player decides to place a card of choice.
+                else{
+                    chosenCardIndex -= 1; // align input to be a valid index.
+                    
+                    // only card of same color is valid:
+                    if(playerPtr->cardsArray[chosenCardIndex].cardColor != takiCardColor){
+                        printf("Invalid card! Try again.\n");
+                        continue;
+                    }
+
+                    // set upperCard as the chosen taki card,
+                    *upperCardPtr = playerPtr->cardsArray[chosenCardIndex];
+                    // remove card from player
+                    removePlayerCard(playerPtr, chosenCardIndex);
+                    // valid card input, continue to next input.
+                    validCardChosen = true;
+
+                }
+            }
+            else{
+                printf("Invalid choice! Try again.\n");
+            }
+        }
+    }
+
+    return chosenCardIndex;
+
+}
+
 int mapPlayerTurnIndex(int playersTurnIndex, int playersCount){
     // checks current index against number of players
     // resets value if index passed a border.
@@ -444,6 +501,19 @@ int mapPlayerTurnIndex(int playersTurnIndex, int playersCount){
         playersTurnIndex %= playersCount;
     }
     return playersTurnIndex;
+}
+
+int mapValueEdges(int value, int leftEdge, int rightEdge){
+    // checks current value, and maps the values like the edges are connected
+    // (like a mobius strip, but one dimensional)
+
+    if(value < leftEdge){
+        value += rightEdge;
+    }
+    else if(value >= rightEdge){
+        value %= rightEdge;
+    }
+    return value;
 }
 
 // simply checks if ptr is "NULL", exit(1) if yes
