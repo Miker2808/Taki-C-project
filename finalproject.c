@@ -79,7 +79,7 @@ void numerateArray(int array[], int size);
 void addToStatistics(struct Card card);
 void printStatistics();
 void sortStatisticsList();
-void swapStats(int leftStat[2], int rightStat[2]);
+void swap(int * leftVal, int * rightVal);
 void convertCardToText(int cardNumber, char outputString[]);
 
 void checkValidAllocation(void * ptr);
@@ -87,7 +87,7 @@ void freePlayersMemory(struct Player * playersArray, int playersCount);
 // End of declerations area
 
 // initialize 2D array, first index will hold the card type, the second the count of usage.
-int g_statsArray[NUM_OF_CARD_TYPES][2];
+int g_statsArray[2][NUM_OF_CARD_TYPES];
 
 void main(){
     // use system time as the random seed, keep as first call on main.
@@ -143,10 +143,10 @@ void main(){
             
         }
         
-        if(playersArray[currentPlayerIndex].cardCount == 0){
+        if(currentPlayerPtr->cardCount == 0){
             // game finished, player got rid of all cards. 
             // special cases are handled in cardHandler.
-            gameFinished == true;
+            break;
         }
 
         // assign index of next player based on game's direction.
@@ -157,13 +157,11 @@ void main(){
         currentPlayerIndex = mapValueEdges(currentPlayerIndex, 0, playersCount);
     }
 
-    printf("The winner is... %s! Congratulations!\n");
+    printf("\nThe winner is... %s! Congratulations!\n\n", currentPlayerPtr->playerName);
     
     printStatistics();
 
     freePlayersMemory(playersArray, playersCount);
-    printf("finished.");
-
 }
 
 // start of definitions area
@@ -226,7 +224,7 @@ void printCard(struct Card card){
     printf("*       *\n");
     // print card type line based on switch.
     convertCardToText(card.cardNumber, cardName);
-    printf("*%s*\n");
+    printf("*%s*\n", cardName);
     // switch (card.cardNumber)
     // {
     // case PLUS_CARD:
@@ -493,7 +491,7 @@ struct Card handleTakiCard(struct Player * playerPtr, struct Card upperCard){
     struct Card chosenCard;
     
     // iterate until player chooses to stop, or he has no more cards
-    while(!endTurn){
+    while(!endTurn && playerPtr->cardCount > 0 ){
         
         validCardChosen = false; // reset flag for new choice.
         // print deck info.
@@ -593,7 +591,7 @@ void numerateArray(int array[], int size){
 // Receives a card struct
 // increments the count of the card to the relevant index
 void addToStatistics(struct Card card){
-    g_statsArray[card.cardNumber - 1][1] += 1;
+    g_statsArray[1][card.cardNumber - 1] += 1;
 }
 
 // Sorts the statistics array, and prints the values
@@ -607,12 +605,11 @@ void printStatistics(){
     printf("Card # | Frequency\n");
     printf("__________________\n");
 
-    char cardName[CARD_NAME_LENGTH];
-    int cardCount;
-
-    for(int i=0; i < NUM_OF_CARD_TYPES; i++){
-        convertCardToText(g_statsArray[i][0], cardName);
-        cardCount = g_statsArray[i][1];
+    // list is sorted from smallest the largest,
+    // so the loop is from end to beginning of the array.
+    for(int i=NUM_OF_CARD_TYPES - 1; i > 0; i--){
+        convertCardToText(g_statsArray[0][i], cardName);
+        cardCount = g_statsArray[1][i];
         printf("%s|    %d\n", cardName, cardCount);
     }
     
@@ -642,7 +639,7 @@ void convertCardToText(int cardNumber, char outputString[]){
         break;
     case TAKI_CARD:
         strcpy(outputString, TAKI_CARD_TEXT);
-    
+        break;
     default:
         // assign number to center of string
         blankString[3] = cardNumber + INT_TO_ASCII;
@@ -658,22 +655,24 @@ void sortStatisticsList(){
     for(int index = 1; index < NUM_OF_CARD_TYPES; index++){
         int leftItemIndex = index - 1;
         // check if number to the left is larger, if yes, swap places and check again until leftItemIndex reaches beginning of array;
-        while(leftItemIndex >= 0 && g_statsArray[leftItemIndex][1] > g_statsArray[leftItemIndex + 1][1] ){
+        while(leftItemIndex >= 0 && g_statsArray[1][leftItemIndex] > g_statsArray[1][leftItemIndex + 1] ){
             // do a swap
-            swapStats(g_statsArray[leftItemIndex], g_statsArray[leftItemIndex + 1]);
+
+            swap(&g_statsArray[0][leftItemIndex], &g_statsArray[0][leftItemIndex + 1]);
+            swap(&g_statsArray[1][leftItemIndex], &g_statsArray[1][leftItemIndex + 1]);
+
             leftItemIndex -= 1;
         }
     }
 
 }
 
-// swap stats entries while keeping track of card type.
-// stats are array of size 2, one for the card type, and one for the counting of the card
-// rightStat is a 1D array of size2, same as leftStat
-void swapStats(int leftStat[2], int rightStat[2]){
-    int temp[2] = leftStat;
-    leftStat = rightStat;
-    rightStat = temp;
+// swap values of two pointers
+void swap(int * leftVal, int * rightVal){
+    int temp = *leftVal;
+    *leftVal = *rightVal;
+    *rightVal = temp;
+
 }
 
 // Given a pointer,
