@@ -61,21 +61,22 @@ void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex);
 void printPlayersDeck(struct Player player);
 int chooseCard(struct Player * playerPtr, struct Card upperCard);
 bool validateCardChoice(struct Card chosenCard, struct Card upperCard);
-void cardHandler(struct Player * playerPtr, int * gameDirection, int * playersTurnIndex, 
-                struct Card * upperCard, int chosenCardIndex, const int playersCount);
+struct Card cardHandler(struct Player * playerPtr, struct Card chosenCard ,
+                int * gameDirectionPtr, int * playersTurnIndexPtr, const int playersCount);
 char queryCardColor();
-int handleTakiCard(struct Player * playerPtr, struct Card * upperCard);
+struct Card handleTakiCard(struct Player * playerPtr, struct Card upperCard);
 int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
 int mapValueEdges(int value, int leftEdge, int rightEdge);
 void initializeArray(int array[], int size);
 void addToStatistics(struct Card card);
+void printStatistics();
 
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
 // End of declerations area
 
-int globalStatsArray[NUM_OF_CARD_TYPES];
+int g_statsArray[NUM_OF_CARD_TYPES];
 
 void main(){
     // use system time as the random seed, keep as first call on main.
@@ -88,30 +89,47 @@ void main(){
     int currentPlayerIndex = 0;
     int gameDirection = FORWARD;
     int chosenCardIndex;
-    initializeArray(globalStatsArray, NUM_OF_CARD_TYPES);
+    
+
+
+    initializeArray(g_statsArray, NUM_OF_CARD_TYPES);
 
     printWelcome();
     playersCount = askPlayersCount();
     playersArray = queryPlayers(playersCount);
 
-
-    struct Card randomCard;
+    struct Card chosenCard;
+    struct Player * currentPlayerPtr;
 
     while(!gameFinished){
         // each iteration equals a turn.
 
-        // (V) print upper card
+        // pointer for the player that has this turn.
+        currentPlayerPtr = &playersArray[currentPlayerIndex];
+
+        // Print the cards
         printf("\nUpper card:\n");
         printCard(upperCard);
-        // (V) print the players whose turn it is his cards deck
-        printPlayersDeck(playersArray[currentPlayerIndex]);
-        // (V) ask the player whose turn it is to choose cards
+        printPlayersDeck(*currentPlayerPtr);
 
-        chosenCardIndex = chooseCard(&playersArray[currentPlayerIndex], upperCard);
+        // ask the user for a card, until a valid choice was given. (-1 if no card was chosen)
+        chosenCardIndex = chooseCard(currentPlayerPtr, upperCard);
 
         if(chosenCardIndex >= 0){
-            cardHandler(&playersArray[currentPlayerIndex], &gameDirection, 
-                        &currentPlayerIndex, &upperCard, chosenCardIndex, playersCount);
+
+            chosenCard = currentPlayerPtr->cardsArray[chosenCardIndex];
+            
+            addToStatistics(chosenCard);
+            removePlayerCard(currentPlayerPtr, chosenCardIndex);
+
+            if(chosenCard.cardNumber == TAKI_CARD){
+                // Enter taki waterfall loop.
+                chosenCard = handleTakiCard(currentPlayerPtr, chosenCard);
+            }
+            // Then handle the chosen card, or the last card of the Taki waterfall.
+            chosenCard = cardHandler(currentPlayerPtr, chosenCard, &gameDirection, &currentPlayerIndex, playersCount);
+            upperCard = chosenCard;
+            
         }
         
         if(playersArray[currentPlayerIndex].cardCount == 0){
@@ -127,6 +145,10 @@ void main(){
         //currentPlayerIndex = mapPlayerTurnIndex(currentPlayerIndex, playersCount);
         currentPlayerIndex = mapValueEdges(currentPlayerIndex, 0, playersCount);
     }
+
+    printf("The winner is... %s! Congratulations!\n");
+    
+    printStatistics();
 
     freePlayersMemory(playersArray, playersCount);
     printf("finished.");
@@ -185,10 +207,9 @@ struct Player * queryPlayers(unsigned int playersCount){
     return playersArray;
 }
 
-// prints the given "card" in a visual way.
+// Prints input Card in a visually apealing method.
 void printCard(struct Card card){
 
-    // print two lines
     printf("*********\n");
     printf("*       *\n");
     // print card type line based on switch.
@@ -221,6 +242,7 @@ void printCard(struct Card card){
 // generate a random card using the "rand()" function.
 // will generate a card from 1-9 or of special type
 // will generate a color if the card is eligible for a color.
+// will generate only number cards (excluding special cards) if "numberOnly" is true
 // returns in form of Card struct.
 struct Card generateCard(bool numberOnly){
     struct Card newCard;
@@ -370,15 +392,10 @@ bool validateCardChoice(struct Card chosenCard, struct Card upperCard){
 
 // the most important function!
 // decides what to do based on card chosen!
-void cardHandler(struct Player * playerPtr, int * gameDirectionPtr, int * playersTurnIndexPtr, struct Card * upperCardPtr, int chosenCardIndex, const int playersCount){
-    // 1) check card type,
-    // if card is of basic value (1-9), assign upperCard as this card, and remove this card from player
-    struct Card currentCard = playerPtr->cardsArray[chosenCardIndex];
-    removePlayerCard(playerPtr, chosenCardIndex);
-    addToStatistics(currentCard);
+struct Card cardHandler(struct Player * playerPtr, struct Card chosenCard ,int * gameDirectionPtr, int * playersTurnIndexPtr, const int playersCount){
 
     // handle special cards, normal cards are passed as is.
-    switch (currentCard.cardNumber)
+    switch (chosenCard.cardNumber)
     {
         case PLUS_CARD:
             *playersTurnIndexPtr -= 1; // next turn will assign to the same player.
@@ -404,20 +421,11 @@ void cardHandler(struct Player * playerPtr, int * gameDirectionPtr, int * player
         case CHANGE_COLOR_CARD:
             // prompt user to choose color:
             // and assign the color to the upper deck card
-            currentCard.cardColor = queryCardColor();
-            break;
-        case TAKI_CARD:
-            // begin a new loop to drop all cards based on the Taki card rules
-            // rules are different from the basic card choices, therefore I decided to initiate a special loop
-            // for this case.
-            chosenCardIndex = handleTakiCard(playerPtr, upperCardPtr);
-            currentCard = playerPtr->cardsArray[chosenCardIndex]; // update current card as Taki may have changed it
-            // Handle the upperCard after player finished his Taki loop.
-            cardHandler(playerPtr, gameDirectionPtr, playersTurnIndexPtr, upperCardPtr, chosenCardIndex, playersCount);
+            chosenCard.cardColor = queryCardColor();
             break;
     }
 
-    *upperCardPtr = currentCard; // set value of upperCard as value of currentCard.
+    return chosenCard;
 
 }
 
@@ -462,45 +470,42 @@ char queryCardColor(){
 
 // handle a taki card
 // place all valid cards for the taki, and return the last card placed.
-int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
+struct Card handleTakiCard(struct Player * playerPtr, struct Card upperCard){
     bool endTurn = false;
     bool validCardChosen;
+    int playerInput;
     int chosenCardIndex;
-    char takiCardColor = upperCardPtr->cardColor;
+    char takiCardColor = upperCard.cardColor;
     struct Card chosenCard;
     
     // iterate until player chooses to stop, or he has no more cards
-    while(!endTurn || playerPtr->cardCount == 0){
+    while(!endTurn){
         
         validCardChosen = false; // reset flag for new choice.
-
         // print deck info.
         printf("\nUpper card:\n");
-        printCard(*upperCardPtr);
+        printCard(upperCard);
         printPlayersDeck(*playerPtr);
         
         while(!validCardChosen){
             printf("Please enter 0 if you want to finish your turn\n");
             printf("or 1-%d if you want to put one of your cards in the middle:\n", playerPtr->cardCount);
-            scanf("%d", &chosenCardIndex);
+            scanf("%d", &playerInput);
             // card chosen is in valid range of choices  
-            if(chosenCardIndex >= 0 && chosenCardIndex <= playerPtr->cardCount ){
+            if(playerInput >= 0 && playerInput <= playerPtr->cardCount ){
                 // player decides to end the turn
-                if(chosenCardIndex == 0){
-                    endTurn == true;
-                    break;
+                if(playerInput == 0){
+                    return upperCard;
                 }
                 // player decides to place a card of choice.
                 else{
-                    chosenCardIndex -= 1; // align input to be a valid index.
+                    chosenCardIndex = playerInput - 1;
                     chosenCard = playerPtr->cardsArray[chosenCardIndex];
 
-                    // If "Change color" card was chosen, ask for the color and end the taki loop.
+                    // If "Change color" card was chosen end the loop.
                     if(chosenCard.cardNumber == CHANGE_COLOR_CARD){
-                        chosenCard.cardColor = queryCardColor();
                         endTurn = true;
                     }
-
                     // if not a "Change color" card, check if the color is the same as the Taki Card
                     // refuse the choice if the color is different.
                     else if(chosenCard.cardColor != takiCardColor){
@@ -509,13 +514,13 @@ int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
                     }
                     
                     // set upperCard as the chosen taki card,
-                    *upperCardPtr = playerPtr->cardsArray[chosenCardIndex];
+                    upperCard = chosenCard;
                     // remove card from player
                     removePlayerCard(playerPtr, chosenCardIndex);
-                    // valid card input, continue to next input.
+                    // input is valid, continue to the next input request
                     validCardChosen = true;
-                    // record the card
-                    addToStatistics(*upperCardPtr);
+                    // add the card to the statistics
+                    addToStatistics(upperCard);
                 }
             }
             else{
@@ -524,7 +529,7 @@ int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
         }
     }
 
-    return chosenCardIndex;
+    return upperCard;
 
 }
 
@@ -562,7 +567,11 @@ void initializeArray(int array[], int size){
 }
 
 void addToStatistics(struct Card card){
-    globalStatsArray[card.cardNumber - 1] += 1;
+    g_statsArray[card.cardNumber - 1] += 1;
+}
+
+void printStatistics(){
+    
 }
 
 void sortArray(){
