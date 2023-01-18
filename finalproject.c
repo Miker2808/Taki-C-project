@@ -68,7 +68,8 @@ int handleTakiCard(struct Player * playerPtr, struct Card * upperCard);
 int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
 int mapValueEdges(int value, int leftEdge, int rightEdge);
 void initializeArray(int array[], int size);
-void addToStatistics(int statsArray[], struct Card card);
+void addToStatistics(struct Card card);
+
 // do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
@@ -282,12 +283,6 @@ void appendCardToPlayer(struct Player * playerPtr, struct Card card){
 
 // remove the card at the assigned index from the deck, by overwritting with the cards ahead.
 void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex){
-    // record this card to statistics:
-    // The logic: cards do not just disappear, if I need to remove a card from player, he most
-    // definitly placed the card in the upperDeck. recording the stats here is the best solution
-    // as it doesn't require to check where each card was drawn.
-    addToStatistics(globalStatsArray, playerPtr->cardsArray[cardIndex]);
-    
     // make the cardCount smaller by 1
     playerPtr->cardCount -= 1;
     // iterate all cards but the last one (we removed it using above line)
@@ -380,7 +375,8 @@ void cardHandler(struct Player * playerPtr, int * gameDirectionPtr, int * player
     // if card is of basic value (1-9), assign upperCard as this card, and remove this card from player
     struct Card currentCard = playerPtr->cardsArray[chosenCardIndex];
     removePlayerCard(playerPtr, chosenCardIndex);
-    
+    addToStatistics(currentCard);
+
     // handle special cards, normal cards are passed as is.
     switch (currentCard.cardNumber)
     {
@@ -472,9 +468,10 @@ int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
     int chosenCardIndex;
     char takiCardColor = upperCardPtr->cardColor;
     struct Card chosenCard;
-        
+    
+    // iterate until player chooses to stop, or he has no more cards
     while(!endTurn || playerPtr->cardCount == 0){
-        // print the deck of the player and ask to choose a card to place.
+        
         validCardChosen = false; // reset flag for new choice.
 
         // print deck info.
@@ -517,6 +514,8 @@ int handleTakiCard(struct Player * playerPtr, struct Card * upperCardPtr){
                     removePlayerCard(playerPtr, chosenCardIndex);
                     // valid card input, continue to next input.
                     validCardChosen = true;
+                    // record the card
+                    addToStatistics(*upperCardPtr);
                 }
             }
             else{
@@ -562,8 +561,8 @@ void initializeArray(int array[], int size){
     }
 }
 
-void addToStatistics(int statsArray[], struct Card card){
-    statsArray[card.cardNumber - 1] += 1;
+void addToStatistics(struct Card card){
+    globalStatsArray[card.cardNumber - 1] += 1;
 }
 
 void sortArray(){
