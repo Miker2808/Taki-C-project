@@ -32,6 +32,13 @@
 #define COLORLESS_CARD ' '
 #define NUM_OF_CARD_TYPES 14
 
+#define CARD_NAME_LENGTH 8
+#define PLUS_CARD_TEXT "   +   "
+#define STOP_CARD_TEXT "  STOP "
+#define DIRECTION_CARD_TEXT "  <->  "
+#define CHANGE_COLOR_TEXT " COLOR "
+#define TAKI_CARD_TEXT "  TAKI "
+
 // End of defines area
 //
 // Structures area
@@ -65,18 +72,22 @@ struct Card cardHandler(struct Player * playerPtr, struct Card chosenCard ,
                 int * gameDirectionPtr, int * playersTurnIndexPtr, const int playersCount);
 char queryCardColor();
 struct Card handleTakiCard(struct Player * playerPtr, struct Card upperCard);
-int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
+//int mapPlayerTurnIndex(int playersTurnIndex, int playersCount);
 int mapValueEdges(int value, int leftEdge, int rightEdge);
-void initializeArray(int array[], int size);
+void resetArray(int array[], int size);
+void numerateArray(int array[], int size);
 void addToStatistics(struct Card card);
 void printStatistics();
+void sortStatisticsList();
+void swapStats(int leftStat[2], int rightStat[2]);
+void convertCardToText(int cardNumber, char outputString[]);
 
-// do not put functions here! (Note for me, mike)
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
 // End of declerations area
 
-int g_statsArray[NUM_OF_CARD_TYPES];
+// initialize 2D array, first index will hold the card type, the second the count of usage.
+int g_statsArray[NUM_OF_CARD_TYPES][2];
 
 void main(){
     // use system time as the random seed, keep as first call on main.
@@ -90,9 +101,9 @@ void main(){
     int gameDirection = FORWARD;
     int chosenCardIndex;
     
-
-
-    initializeArray(g_statsArray, NUM_OF_CARD_TYPES);
+    // initialize g_statsArray
+    numerateArray(g_statsArray[0], NUM_OF_CARD_TYPES);
+    resetArray(g_statsArray[1], NUM_OF_CARD_TYPES);
 
     printWelcome();
     playersCount = askPlayersCount();
@@ -209,31 +220,34 @@ struct Player * queryPlayers(unsigned int playersCount){
 
 // Prints input Card in a visually apealing method.
 void printCard(struct Card card){
+    char cardName[8];
 
     printf("*********\n");
     printf("*       *\n");
     // print card type line based on switch.
-    switch (card.cardNumber)
-    {
-    case PLUS_CARD:
-        printf("*   +   *\n");
-        break;
-    case STOP_CARD:
-        printf("*  STOP *\n");
-        break;
-    case DIRECTION_CARD:
-        printf("*  <->  *\n");
-        break;
-    case CHANGE_COLOR_CARD:
-        printf("* COLOR *\n");
-        break;
-    case TAKI_CARD:
-        printf("*  TAKI *\n");
-        break;
+    convertCardToText(card.cardNumber, cardName);
+    printf("*%s*\n");
+    // switch (card.cardNumber)
+    // {
+    // case PLUS_CARD:
+    //     printf("*   +   *\n");
+    //     break;
+    // case STOP_CARD:
+    //     printf("*  STOP *\n");
+    //     break;
+    // case DIRECTION_CARD:
+    //     printf("*  <->  *\n");
+    //     break;
+    // case CHANGE_COLOR_CARD:
+    //     printf("* COLOR *\n");
+    //     break;
+    // case TAKI_CARD:
+    //     printf("*  TAKI *\n");
+    //     break;
 
-    default:
-        printf("*   %d   *\n", card.cardNumber);
-    }
+    // default:
+    //     printf("*   %d   *\n", card.cardNumber);
+    // }
     printf("*   %c   *\n", card.cardColor);
     printf("*       *\n");
     printf("*********\n");
@@ -533,17 +547,17 @@ struct Card handleTakiCard(struct Player * playerPtr, struct Card upperCard){
 
 }
 
-int mapPlayerTurnIndex(int playersTurnIndex, int playersCount){
-    // checks current index against number of players
-    // resets value if index passed a border.
-    if(playersTurnIndex < 0){
-        playersTurnIndex = playersCount + playersTurnIndex;
-    }
-    else if(playersTurnIndex >= playersCount){
-        playersTurnIndex %= playersCount;
-    }
-    return playersTurnIndex;
-}
+// int mapPlayerTurnIndex(int playersTurnIndex, int playersCount){
+//     // checks current index against number of players
+//     // resets value if index passed a border.
+//     if(playersTurnIndex < 0){
+//         playersTurnIndex = playersCount + playersTurnIndex;
+//     }
+//     else if(playersTurnIndex >= playersCount){
+//         playersTurnIndex %= playersCount;
+//     }
+//     return playersTurnIndex;
+// }
 
 
 // checks current value, and maps the values like the edges are connected
@@ -560,25 +574,110 @@ int mapValueEdges(int value, int leftEdge, int rightEdge){
     return value;
 }
 
-void initializeArray(int array[], int size){
+// given array, and its size
+// function will reset all its elements to 0
+void resetArray(int array[], int size){
     for(int i=0; i<size; i++){
         array[i] = 0;
     }
 }
 
-void addToStatistics(struct Card card){
-    g_statsArray[card.cardNumber - 1] += 1;
+// given array and its size.
+// the function will numerate the array from 1 to the value of size
+void numerateArray(int array[], int size){
+    for(int i=0; i<size; i++){
+        array[i] = i+1;
+    }
 }
 
+// Receives a card struct
+// increments the count of the card to the relevant index
+void addToStatistics(struct Card card){
+    g_statsArray[card.cardNumber - 1][1] += 1;
+}
+
+// Sorts the statistics array, and prints the values
+// from the most frequent to least frequent card.
 void printStatistics(){
+    char cardName[CARD_NAME_LENGTH];
+    int cardCount;
+
+    sortStatisticsList();
+    printf("************ Game Statistics ************\n");
+    printf("Card # | Frequency\n");
+    printf("__________________\n");
+
+    char cardName[CARD_NAME_LENGTH];
+    int cardCount;
+
+    for(int i=0; i < NUM_OF_CARD_TYPES; i++){
+        convertCardToText(g_statsArray[i][0], cardName);
+        cardCount = g_statsArray[i][1];
+        printf("%s|    %d\n", cardName, cardCount);
+    }
     
 }
 
-void sortArray(){
+// given a cardNumber, writes a visually appealing text into "outputString"
+void convertCardToText(int cardNumber, char outputString[]){
+    char blankString[] = "       ";
+
+    if(cardNumber < 0 || cardNumber > TAKI_CARD){
+        return;
+    }
+    
+    switch (cardNumber)
+    {
+    case PLUS_CARD:
+        strcpy(outputString, PLUS_CARD_TEXT);
+        break;
+    case CHANGE_COLOR_CARD:
+        strcpy(outputString, CHANGE_COLOR_TEXT);
+        break;
+    case STOP_CARD:
+        strcpy(outputString, STOP_CARD_TEXT);
+        break;
+    case DIRECTION_CARD:
+        strcpy(outputString, DIRECTION_CARD_TEXT);
+        break;
+    case TAKI_CARD:
+        strcpy(outputString, TAKI_CARD_TEXT);
+    
+    default:
+        // assign number to center of string
+        blankString[3] = cardNumber + INT_TO_ASCII;
+        strcpy(outputString, blankString);
+    }
+}
+
+// sorts the global stats array using insertion sort
+void sortStatisticsList(){
+    // sort the list using insertion sort method
+
+    //using a 'for' loop, traverse each element
+    for(int index = 1; index < NUM_OF_CARD_TYPES; index++){
+        int leftItemIndex = index - 1;
+        // check if number to the left is larger, if yes, swap places and check again until leftItemIndex reaches beginning of array;
+        while(leftItemIndex >= 0 && g_statsArray[leftItemIndex][1] > g_statsArray[leftItemIndex + 1][1] ){
+            // do a swap
+            swapStats(g_statsArray[leftItemIndex], g_statsArray[leftItemIndex + 1]);
+            leftItemIndex -= 1;
+        }
+    }
 
 }
 
-// simply checks if ptr is "NULL", exit(1) if yes
+// swap stats entries while keeping track of card type.
+// stats are array of size 2, one for the card type, and one for the counting of the card
+// rightStat is a 1D array of size2, same as leftStat
+void swapStats(int leftStat[2], int rightStat[2]){
+    int temp[2] = leftStat;
+    leftStat = rightStat;
+    rightStat = temp;
+}
+
+// Given a pointer,
+// function simply checks if ptr is "NULL", exit(1) if yes
 // nothing otherwise.
 void checkValidAllocation(void * ptr){
     if(ptr == NULL){
@@ -587,16 +686,16 @@ void checkValidAllocation(void * ptr){
     }
 }
 
-// Keep this function as last.
+// Given playersArray and count of players,
+// free all dynamically allocated arrays of each player, 
+// and in the end input array
 void freePlayersMemory(struct Player * playersArray, int playersCount){
     struct Card * cardPointer;
     for(int i=0; i<playersCount; i++){
         // free each card array from its pointer for each player
         free(playersArray[i].cardsArray);
-        printf("Freed cards deck %d\n", i+1);
     }
     // free the players array.
     free(playersArray);
-    printf("Freed players array\n");
 }
 // end of file
