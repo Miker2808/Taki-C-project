@@ -1,4 +1,3 @@
-// Michael Pogodin - 323446070
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <string.h>
