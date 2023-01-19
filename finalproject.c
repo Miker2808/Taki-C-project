@@ -10,7 +10,7 @@
 
 // Start of defines area
 #define MAX_NAME_LENGTH 20
-#define START_CARDS_COUNT 4
+#define START_CARDS_COUNT 2
 #define INT_TO_ASCII 48
 #define DECK_RESIZE_VALUE 4
 #define NUMBER_CARD_ONLY true
@@ -75,6 +75,7 @@ void swap(int * leftVal, int * rightVal);
 void convertCardToText(int cardNumber, char outputString[]);
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
+void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, struct Card * upperCard);
 // End of declerations area
 
 // initialize 2D array, first index will hold the card type, the second the count of usage.
@@ -87,11 +88,14 @@ void main(){
     // dynamic variables.
     bool gameFinished = false;
     int playersCount;
-    struct Player * playersArray;
-    struct Card upperCard = generateCard(NUMBER_CARD_ONLY);
+    int chosenCardIndex;
     int currentPlayerIndex = 0;
     int gameDirection = FORWARD;
-    int chosenCardIndex;
+    struct Player * playersArray;
+    struct Player * currentPlayerPtr;
+    struct Card upperCard = generateCard(NUMBER_CARD_ONLY);
+    struct Card chosenCard;
+
     
     // initialize g_statsArray
     numerateArray(g_statsArray[0], NUM_OF_CARD_TYPES);
@@ -102,10 +106,8 @@ void main(){
     playersCount = askPlayersCount();
 
     playersArray = queryPlayers(playersCount);
-
-    struct Card chosenCard;
-    struct Player * currentPlayerPtr;
-
+    debug_assignCardsToPlayers(playersArray, playersCount, &upperCard);
+    
     // The main loop.
     while(!gameFinished){
         // each iteration equals a turn.
@@ -311,7 +313,9 @@ void removePlayerCard(struct Player * playerPtr, unsigned int cardIndex){
 
 // print the cards that the "player" has in his deck.
 void printPlayersDeck(struct Player player){
-    printf("\n%s's turn:\n", player.playerName);
+    // print player's name
+    printf("\n%s's turn:\n\n", player.playerName);
+    // print his deck using printCard function
     for(int i=0; i < player.cardCount; i++){
         printf("Card #%d:\n", i+1);
         printCard(player.cardsArray[i]);
@@ -584,7 +588,7 @@ void printStatistics(){
 
     // list is sorted from smallest the largest,
     // so the loop is from end to beginning of the array.
-    for(int i=NUM_OF_CARD_TYPES - 1; i > 0; i--){
+    for(int i=NUM_OF_CARD_TYPES - 1; i >= 0; i--){
         convertCardToText(g_statsArray[0][i], cardName);
         cardCount = g_statsArray[1][i];
         printf("%s|    %d\n", cardName, cardCount);
@@ -674,4 +678,36 @@ void freePlayersMemory(struct Player * playersArray, int playersCount){
     // free the players array.
     free(playersArray);
 }
+
+
+void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, struct Card * upperCard){
+    int chosenCardNumber;
+    char chosenCardColor;
+    printf("\n~~~~~ Debug Tool ~~~~~\n");
+    printf("NOTE: Input is not checked for bounds or types!\n");
+    printf("Players count: %d\n",playersCount);
+    printf("Cards per player: %d\n", START_CARDS_COUNT);
+    for(int i=0; i<playersCount; i++){
+        printf("Choosing cards for player Idx:%d, called \"%s\"\n", i, playersArray[i].playerName);
+        for(int cardIdx=0; cardIdx<START_CARDS_COUNT; cardIdx++){
+            printf("Choose number for card (1-9, 10=PLUS, 11=STOP, 12=DIRECTION, 13=COLOR, 14=TAKI) for card #%d: ", cardIdx+1);
+            scanf("%d", &chosenCardNumber);
+            printf("Choose color for card (R,B,G,Y or ' ' (space)) for card #%d: ", cardIdx+1);
+            scanf(" %c", &chosenCardColor);
+            playersArray[i].cardsArray[cardIdx].cardColor = chosenCardColor;
+            playersArray[i].cardsArray[cardIdx].cardNumber = chosenCardNumber;
+        }
+    }
+    printf("\n\nChoose upper deck card:");
+    printf("Choose number for card (1-14): ");
+    scanf("%d", &chosenCardNumber);
+    printf("Choose color for card (R,B,G,Y or ' ' (space)): ");
+    scanf(" %c", &chosenCardColor);
+    upperCard->cardColor = chosenCardColor;
+    upperCard->cardNumber = chosenCardNumber;
+    printf("\nEverything is done, have a good day!\n");
+    printf("~~~~~ End of Debug Tool ~~~~~\n\n");
+
+}
+
 // end of file
