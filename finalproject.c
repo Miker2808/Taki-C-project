@@ -75,7 +75,6 @@ void swap(int * leftVal, int * rightVal);
 void convertCardToText(int cardNumber, char outputString[]);
 void checkValidAllocation(void * ptr);
 void freePlayersMemory(struct Player * playersArray, int playersCount);
-void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, struct Card * upperCard);
 // End of declerations area
 
 // initialize 2D array, first index will hold the card type, the second the count of usage.
@@ -106,7 +105,6 @@ void main(){
     playersCount = askPlayersCount();
 
     playersArray = queryPlayers(playersCount);
-    debug_assignCardsToPlayers(playersArray, playersCount, &upperCard);
     
     // The main loop.
     while(!gameFinished){
@@ -677,44 +675,6 @@ void freePlayersMemory(struct Player * playersArray, int playersCount){
     }
     // free the players array.
     free(playersArray);
-}
-
-
-void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, struct Card * upperCard){
-    int chosenCardNumber;
-    char chosenCardColor;
-    printf("\n~~~~~ Debug Tool ~~~~~\n");
-    printf("NOTE: Input is not verified for bounds or types!\n");
-    printf("Players count: %d\n",playersCount);
-    printf("Cards per player: %d\n", START_CARDS_COUNT);
-    for(int i=0; i<playersCount; i++){
-        printf("\nChoosing cards for player Idx:%d, called \"%s\"\n", i, playersArray[i].playerName);
-        for(int cardIdx=0; cardIdx<START_CARDS_COUNT; cardIdx++){
-            printf("Choose number for card (1-9, 10=PLUS, 11=STOP, 12=DIRECTION, 13=COLOR, 14=TAKI) for card #%d: ", cardIdx+1);
-            scanf("%d", &chosenCardNumber);
-            playersArray[i].cardsArray[cardIdx].cardNumber = chosenCardNumber;
-
-            if(chosenCardNumber == CHANGE_COLOR_CARD){
-                playersArray[i].cardsArray[cardIdx].cardColor = COLORLESS_CARD;
-                
-            }
-            else{
-                printf("Choose color (R,G,B,Y) for card #%d: ", cardIdx+1);
-                scanf(" %c", &chosenCardColor);
-                playersArray[i].cardsArray[cardIdx].cardColor = chosenCardColor;
-            }
-        }
-    }
-    printf("\n\nChoose upper deck card:");
-    printf("Choose number for card (1-14): ");
-    scanf("%d", &chosenCardNumber);
-    printf("Choose color for card (R,B,G,Y or ' ' (space)): ");
-    scanf(" %c", &chosenCardColor);
-    upperCard->cardColor = chosenCardColor;
-    upperCard->cardNumber = chosenCardNumber;
-    printf("\nEverything is done, have a good day!\n");
-    printf("~~~~~ End of Debug Tool ~~~~~\n\n");
-
 }
 
 // end of file
