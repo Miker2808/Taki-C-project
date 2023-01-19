@@ -126,11 +126,14 @@ void main(){
 
             chosenCard = currentPlayerPtr->cardsArray[chosenCardIndex];
             
+            // record the card to the statistics table
             addToStatistics(chosenCard);
-            removePlayerCard(currentPlayerPtr, chosenCardIndex);
 
+            removePlayerCard(currentPlayerPtr, chosenCardIndex);
+            
+            // Enter taki waterfall loop.
             if(chosenCard.cardNumber == TAKI_CARD){
-                // Enter taki waterfall loop.
+                
                 chosenCard = handleTakiCard(currentPlayerPtr, chosenCard);
             }
 
