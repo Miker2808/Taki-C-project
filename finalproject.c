@@ -10,7 +10,7 @@
 
 // Start of defines area
 #define MAX_NAME_LENGTH 20
-#define START_CARDS_COUNT 2
+#define START_CARDS_COUNT 4
 #define INT_TO_ASCII 48
 #define DECK_RESIZE_VALUE 4
 #define NUMBER_CARD_ONLY true
@@ -688,14 +688,17 @@ void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, 
     printf("Players count: %d\n",playersCount);
     printf("Cards per player: %d\n", START_CARDS_COUNT);
     for(int i=0; i<playersCount; i++){
-        printf("Choosing cards for player Idx:%d, called \"%s\"\n", i, playersArray[i].playerName);
+        printf("\nChoosing cards for player Idx:%d, called \"%s\"\n", i, playersArray[i].playerName);
         for(int cardIdx=0; cardIdx<START_CARDS_COUNT; cardIdx++){
             printf("Choose number for card (1-9, 10=PLUS, 11=STOP, 12=DIRECTION, 13=COLOR, 14=TAKI) for card #%d: ", cardIdx+1);
             scanf("%d", &chosenCardNumber);
-            printf("Choose color for card (R,B,G,Y or ' ' (space)) for card #%d: ", cardIdx+1);
+            printf("Choose color for card (R,B,G,Y or S (colorless) for card #%d: ", cardIdx+1);
             scanf(" %c", &chosenCardColor);
             playersArray[i].cardsArray[cardIdx].cardColor = chosenCardColor;
             playersArray[i].cardsArray[cardIdx].cardNumber = chosenCardNumber;
+            if(chosenCardColor == 'S'){
+                playersArray[i].cardsArray[cardIdx].cardNumber = COLORLESS_CARD;
+            }
         }
     }
     printf("\n\nChoose upper deck card:");
