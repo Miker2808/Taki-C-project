@@ -684,7 +684,7 @@ void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, 
     int chosenCardNumber;
     char chosenCardColor;
     printf("\n~~~~~ Debug Tool ~~~~~\n");
-    printf("NOTE: Input is not checked for bounds or types!\n");
+    printf("NOTE: Input is not verified for bounds or types!\n");
     printf("Players count: %d\n",playersCount);
     printf("Cards per player: %d\n", START_CARDS_COUNT);
     for(int i=0; i<playersCount; i++){
@@ -692,12 +692,16 @@ void debug_assignCardsToPlayers(struct Player * playersArray, int playersCount, 
         for(int cardIdx=0; cardIdx<START_CARDS_COUNT; cardIdx++){
             printf("Choose number for card (1-9, 10=PLUS, 11=STOP, 12=DIRECTION, 13=COLOR, 14=TAKI) for card #%d: ", cardIdx+1);
             scanf("%d", &chosenCardNumber);
-            printf("Choose color for card (R,B,G,Y or S (colorless) for card #%d: ", cardIdx+1);
-            scanf(" %c", &chosenCardColor);
-            playersArray[i].cardsArray[cardIdx].cardColor = chosenCardColor;
             playersArray[i].cardsArray[cardIdx].cardNumber = chosenCardNumber;
-            if(chosenCardColor == 'S'){
-                playersArray[i].cardsArray[cardIdx].cardNumber = COLORLESS_CARD;
+
+            if(chosenCardNumber == CHANGE_COLOR_CARD){
+                playersArray[i].cardsArray[cardIdx].cardColor = COLORLESS_CARD;
+                
+            }
+            else{
+                printf("Choose color (R,G,B,Y) for card #%d: ", cardIdx+1);
+                scanf(" %c", &chosenCardColor);
+                playersArray[i].cardsArray[cardIdx].cardColor = chosenCardColor;
             }
         }
     }
